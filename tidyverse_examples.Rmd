@@ -1,0 +1,346 @@
+---
+title: "Tidyverse Examples"
+author: "Evan Bowman"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    number_sections: yes
+editor_options:
+  chunk_output_type: inline
+urlcolor: blue
+theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align  = "center",
+                      fig.height = 3,
+                      fig.width  = 5)
+```
+
+```{r, include=F}
+library(tidyverse)
+library(lubridate)
+```
+
+# Analyze the Enable Word List
+
+The [ENABLE](https://everything2.com/title/ENABLE+word+list) word list is used in many online or app-based games such as Words with Friends. It is an acronym for Enhanced North American Benchmark Lexicon. Unlike many Scrabble word lists, it is unconstrained by word length but also has fewer words. It was developed in 1997 so does not have many "modern" words, e.g., blog or cellphone.
+
+1. Use a {readr} function and relative path to load the enable1_words.txt into R from your data folder using arguments so there are no warnings or messages. There should be 172,820 rows. Do not suppress warnings and messages.
+```{r}
+read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F)
+
+enable <- read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F) 
+```
+
+   
+2. What word(s) have the most "m"'s in them? There should be 7. Of the *words with the next-greatest number of "m"'s*, use a slice function to find the six longest words from longest to shortest? Why do you get 11 words and not 6?
+```{r}
+most_ms <- enable |>
+  mutate(count_m = str_count(words, "M|m"))|>
+  arrange(desc(count_m))
+tibble(most_ms)
+
+most_ms|>
+  slice(8:172820)|>
+  mutate(length = str_length(words))|>
+  filter(count_m == 3)|>
+  slice_max(n = 6, order_by = length)
+```
+
+The code returned 11 words instead of 6 because the code returns the six longest words but will include any other words of the same length. In this case, the slice_max command returned an additional five words since they also had 19 letters in them.
+
+3. How many words have an identical first and second half of the word? DATA 613-students must solve using a regex pattern. 
+
+   - If a word has an odd number of letters, exclude the middle character.  
+  - "murmur" counts because "mur" is both the first and second half.
+  - "derider" counts because the middle "i" is excluded so "der" is both the first and second half. 
+  - Save the results to a variable in a data frame that includes the original variables.
+```{r}
+enable_identical <- enable |> 
+  mutate(identical_halves = str_detect(words, "^(.+).?\\1$"))
+
+enable_identical|>
+  group_by(identical_halves) |>
+  count()
+```
+
+There are 134 letters that have an identical first and second half of the word. 
+
+4. Use the results from 3 to find the longest word(s) with an identical first and second half of the word? There should be four words.
+```{r}
+enable_identical|>
+  filter(identical_halves == TRUE)|>
+  mutate(length = str_count(words))|>
+  arrange(desc(length))
+```
+
+# Country Names
+The goal is to create an updated country code data frame with the original and world bank names where they exist along with a set of new names without punctuation.
+
+1. Load the data `country_codes` from the {gapminder} package and use a {readr} function and relative path to read in the World Bank data in `country.csv`. These two data sets are not consistent on all of the country names. 
+```{r}
+country_codes <- gapminder::country_codes
+country <- read_csv("data/country.csv", show_col_types = F)
+```
+
+
+2. Use a {dplyr} join function to show only the country **names** from the gapminder country codes that are **not in** the World Bank data. There should be 21.
+```{r}
+anti_join(country_codes, country, by = c("country" = "TableName"))
+```
+
+
+3. Use a {dplyr} join function to add the country names from the World Bank data to the `country_codes` data frame to a new variable called `wb_name` **for only those countries that are in the {gapminder} `country_codes` data frame** and save to a data frame called `country_codes_wb`. 
+```{r}
+country_codes_wb <-inner_join(country_codes, country, by = c("iso_alpha" = "Country Code"))|>
+  rename("wb_name" = "TableName")
+head(country_codes_wb)
+```
+
+4. Use code count how many world bank names use some form of punctuation. There should be 16.
+```{r}
+str_subset(country_codes_wb$wb_name, "[:punct:]")
+```
+
+- Note: the accent circumflex "^" does not count as punctuation but as part of a letter.
+
+5. Create a new column in the data frame **right after `country`** where you use {stringr} functions to:
+  - a. Replace all of the punctuation or white spaces in the world bank names with an `_`, and then,
+  - b. Remove any trailing `_`, and then, 
+  - c. Replace any double `__` with a single `_`. 
+```{r}
+# a)
+country_codes_wb<- country_codes_wb|>
+  mutate(format_name = str_replace_all(wb_name, "[[:punct:] [:blank:]]" , "_"), .after = country)
+
+# b)
+country_codes_wb <- country_codes_wb|>
+  mutate(format_name = str_remove_all(format_name, "_$"), .after = country)
+
+# c)
+country_codes_wb <- country_codes_wb|>
+  mutate(format_name = str_replace_all(format_name, "__", "_"), .after = country)
+
+tibble(country_codes_wb)
+```
+
+  - d. Now filter to show only the 16 rows with the new names. One of them should look like `Congo_Dem_Rep`. 
+```{r}
+country_codes_wb|>
+  filter(str_detect(wb_name, "[:punct:]"))
+```
+
+
+# Civil War Battles
+
+The file "civil_war_theater.csv" contains data on American Civil War battles, taken from [Wikipedia](https://en.wikipedia.org/wiki/List_of_American_Civil_War_battles).  
+
+Variables include:   
+
+- `Battle`: The name of the battle.
+- `Date`: The date(s) of the battle in different formats depending upon the length of the battle. 
+  + If it took place on one day, the format is "month day, year". 
+  + If it took place over multiple days, the format is "month day_start-day_end, year". 
+  + If it took place over multiple days and months, the format is "month_start day_start - month_end day_end, year". 
+  + If it took place over multiple days,months, and years, the format is "month_start day_start, year_start - month_end day_end, year_end".
+- `State`: The state where the battle took place. Annotations (e.g. describing that the state was a territory at the time) are in parentheses.
+- `CWSAC`: A rating of the military significance of the battle by the Civil War Sites Advisory Commission. `A` = Decisive, `B` = Major, `C` = Formative, `D` = Limited.
+- `Outcome`: Usually `"Confederate victory"`, `"Union victory"`, or `"Inconclusive"`, followed by notes.
+- `Theater`: An attempt to to identify which theater of war is most associated with the battle
+    
+1. Use a {readr} function and relative path to load the data into R while using an argument of the {readr} function to specify the column types to be character. Visually inspect the data.
+```{r}
+cw_battles <- read_csv("data/civil_war_theater.csv", show_col_types = F)
+head(cw_battles)
+```
+
+    
+The next several questions will help you take the dates from all the different formats and add variables for start date and end date with a consistent format. 
+
+*Suggest documenting in the text the steps of your plan to solve each problem so your approach and rationale are clear. Then implement your plan in code.*
+
+Start by calculating how many years and months are in each battle.
+
+2. Add a variable to the data frame with the number of years for each battle.  
+
+```{r}
+    year_regex <- stringr::str_c(1861:1865, collapse = "|")
+    year_regex
+
+# Using year_regex variable we can use str_count to identify if any of the year_regex values are in the date column and, if so, how many. This will allows us to count the number of years in each battle.
+
+cw_battles <- cw_battles |>
+  mutate(years = str_count(Date, year_regex), .after = Date)
+head(cw_battles)
+```
+
+
+3. Add a variable to the data frame with the number of months for each battle.  
+- Use `month.name` to count the number of month names in the `Date` variable in each battle. 
+- Add this to the data frame directly after `Date` and save it. (Do something similar to part 2).
+```{r}
+month_regex <- stringr::str_c(month.name, collapse = "|")
+
+# Using the same process as the year calculation, we can identify how many months were in each battle.
+cw_battles <- cw_battles |>
+  mutate(months_dur = str_count(Date, month_regex), .after = Date)
+head(cw_battles)
+```
+
+    
+4. Add a variable to the data frame directly after `Date` that is `TRUE` if `Date` spans multiple days and is `FALSE` otherwise and save the data frame. Spanning multiple months and/or years also counts as `TRUE`.
+```{r}
+# The '-' represents a battle spanning multiple days. Str_detect would allow for the required True/False output.
+cw_battles <- cw_battles |>
+  mutate(multi_days = str_detect(Date, "-"), .after = Date)
+head(cw_battles)
+```
+
+5. Make four new data frames by filtering the data based on the length of the battles:  
+   + a data frame with the data for only those battles spanning just one day, 
+```{r}
+day <- cw_battles |>
+  filter(multi_days == FALSE)
+tibble(day)
+```
+
+   + a data frame with the data for only those battles spanning multiple days in just one month, 
+```{r}
+days_month <- cw_battles |>
+  filter(multi_days == TRUE & months_dur == 1)
+tibble(days_month)
+```
+
+   + a data frame with the data for only those battles spanning multiple months but not multiple years, and,
+```{r}
+months <- cw_battles |>
+  filter(months_dur != 1 & years == 1)
+tibble(months)
+```
+  
+   + a data frame with the data for only those battles spanning multiple years.
+```{r}
+years <- cw_battles |>
+  filter(years != 1)
+tibble(years)
+```
+  
+  - How many rows are in each data frame? 
+```{r}
+nrow(day)
+nrow(days_month)
+nrow(months)
+nrow(years)
+```
+
+  - Check your results for completeness or duplication/missing by using code to show (`TRUE`or `FALSE`) if the total of the rows in the four data frames equals the total number of rows in the original data frame. If the result is `FALSE`, suggest checking your work,
+```{r}
+diff_rows <- nrow(day) + nrow(days_month) + nrow(months) + nrow(years)
+cw_rows <- nrow(cw_battles)
+
+identical(diff_rows, cw_rows)
+```
+
+        
+6. Manipulate each of the four data individually as follows: by adding two new variables to the data frame. How you add the new variables will be different for each of the four data frames.
+
+- Add two new variables to the data frame.
+    + The new variable `Start` should contain the first date of each battle. 
+  
+    + The new variable `End` should contain the last date of each battle.
+    + `Start` and `End ` **must be `Date` class objects.** 
+- Remove the `Date` variable from each data frame.
+- Save the data frame.
+
+```{r}
+# Day
+day1 <- day |>
+  mutate(start = mdy(Date),
+         end = mdy(Date), .after = Date) |>
+  select(-Date)
+head(day1)
+
+# Days and Month
+days_month1 <- days_month |>
+  separate(col = Date, into = c("Month", "Start", "End", "Year")) |>
+  mutate(month = Month, year = Year) |>
+  unite("start", c(Month, Start, Year), sep = " ") |>
+  unite("end", c(month, End, year), sep = " ") |>
+  mutate(start = mdy(start),
+         end = mdy(end))
+head(days_month1)
+
+#  Multiple Months
+months1 <- months |>
+  separate(Date, into = c("start", "end"), sep = "-") |>
+  separate(end, into = c("end", "year"), sep = ",") |>
+  mutate(Year = year) |>
+  unite("start", c(start, year), sep = " ") |>
+  unite("end", c(end, Year), sep = " ") |>
+  mutate(start = mdy(start),
+         end = mdy(end))
+head(months1)
+
+# Multiple Years
+years1 <- years |>
+  separate(Date, into = c("start", "end"), sep = "-") |>
+  mutate(start = mdy(start),
+         end = mdy(end))
+head(years1)
+
+```
+
+
+7. Use a single call to a {dplyr} function to bind the rows of the four updated data frames into a single new data frame with all the battles.
+```{r}
+cw_updated <- bind_rows(day1, days_month1, months1, years1)
+identical(cw_rows, nrow(cw_updated))
+```
+
+
+8. Add a variable for the number of days for each battle and save the data frame.  
+- **After looking at the shortest number of days**, what were the median and mean number of days of battles? 
+- What percentage of battles were longer than average length? What does this suggest about the distribution of battle length
+```{r}
+cw_updated_days <- cw_updated |> 
+  mutate(days = (end - start) +1, .after = end)
+head(cw_updated_days)
+
+# Median/Mean number of days
+median(cw_updated_days$days)
+mean(cw_updated_days$days)
+
+# Percentage of Battles
+percentage <- (sum(cw_updated_days$days > 2.846354) / nrow(cw_updated_days)) * 100
+percentage
+```
+
+Only about 20 percent of battles had a longer duration than the mean days for all battles. This tells us that the distribution of battle duration is heavily right skewed.
+
+9. Is there an association between the factor of CWSAC significance of a battle and the log of its length in days?  
+
+- Create an appropriate plot. 
+- Interpret the plot in one sentence to answer the question.
+- Use `aov()` to test whether the mean length of a battle is the same for each level of CWSAC significance and interpret the `summary()` results in one sentence using on the $p$-value.
+```{r}
+# Plot
+cw_updated_days |>
+  ggplot(aes(CWSAC, log(as.numeric(days))))+
+  geom_boxplot()+
+  ggtitle("Duration of Battles by CWSAC Importance")+
+  xlab("CWSAC Level")+
+  ylab("Days")+
+  ggthemes::theme_fivethirtyeight()
+```
+
+From the plot, it appears that there is a slight difference between the mean duration for level A and the other three CWSAC levels. 
+
+```{r}
+#aov
+cw_aov <-aov(days ~ CWSAC, data = cw_updated_days)
+broom::tidy(cw_aov)
+```
+
+Analysis of variance confirms the hypothesis from the plot. With a p-value close to zero we reject the null hypothesis. There is evidence at least one CWSAC level's mean duration is different from the other levels. 
