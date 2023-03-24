@@ -29,9 +29,9 @@ The [ENABLE](https://everything2.com/title/ENABLE+word+list) word list is used i
 
 1. Use a {readr} function and relative path to load the enable1_words.txt into R from your data folder using arguments so there are no warnings or messages. There should be 172,820 rows. Do not suppress warnings and messages.
 ```{r}
-read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F)
+read_delim("../data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F)
 
-enable <- read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F) 
+enable <- read_delim("../data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F) 
 ```
 
    
@@ -82,7 +82,7 @@ The goal is to create an updated country code data frame with the original and w
 1. Load the data `country_codes` from the {gapminder} package and use a {readr} function and relative path to read in the World Bank data in `country.csv`. These two data sets are not consistent on all of the country names. 
 ```{r}
 country_codes <- gapminder::country_codes
-country <- read_csv("data/country.csv", show_col_types = F)
+country <- read_csv("../data/country.csv", show_col_types = F)
 ```
 
 
@@ -152,7 +152,7 @@ Variables include:
     
 1. Use a {readr} function and relative path to load the data into R while using an argument of the {readr} function to specify the column types to be character. Visually inspect the data.
 ```{r}
-cw_battles <- read_csv("data/civil_war_theater.csv", show_col_types = F)
+cw_battles <- read_csv("../data/civil_war_theater.csv", show_col_types = F)
 head(cw_battles)
 ```
 
