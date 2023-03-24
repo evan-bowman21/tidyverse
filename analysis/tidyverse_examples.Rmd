@@ -1,15 +1,15 @@
 ---
-title: 'DATA-413/613 HW 2: Tidyverse Review'
+title: "Tidyverse Examples"
 author: "Evan Bowman"
 date: "`r Sys.Date()`"
 output:
-  html_document: 
-    number_sections: true
+  pdf_document: default
+  html_document:
+    number_sections: yes
 editor_options:
   chunk_output_type: inline
 urlcolor: blue
 theme: cosmo
-
 ---
 
 ```{r setup, include=FALSE}
@@ -29,9 +29,9 @@ The [ENABLE](https://everything2.com/title/ENABLE+word+list) word list is used i
 
 1. Use a {readr} function and relative path to load the enable1_words.txt into R from your data folder using arguments so there are no warnings or messages. There should be 172,820 rows. Do not suppress warnings and messages.
 ```{r}
-read_delim("../data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F)
+read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F)
 
-enable <- read_delim("../data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F) 
+enable <- read_delim("data/enable1_words.txt", delim = " ", col_names = "words", show_col_types = F) 
 ```
 
    
@@ -82,7 +82,7 @@ The goal is to create an updated country code data frame with the original and w
 1. Load the data `country_codes` from the {gapminder} package and use a {readr} function and relative path to read in the World Bank data in `country.csv`. These two data sets are not consistent on all of the country names. 
 ```{r}
 country_codes <- gapminder::country_codes
-country <- read_csv("../data/country.csv", show_col_types = F)
+country <- read_csv("data/country.csv", show_col_types = F)
 ```
 
 
@@ -131,8 +131,7 @@ tibble(country_codes_wb)
 country_codes_wb|>
   filter(str_detect(wb_name, "[:punct:]"))
 ```
-  
-- There is no need to do the replacements in a single step - three steps is fine. 
+
 
 # Civil War Battles
 
@@ -153,7 +152,7 @@ Variables include:
     
 1. Use a {readr} function and relative path to load the data into R while using an argument of the {readr} function to specify the column types to be character. Visually inspect the data.
 ```{r}
-cw_battles <- read_csv("../data/civil_war_theater.csv", show_col_types = F)
+cw_battles <- read_csv("data/civil_war_theater.csv", show_col_types = F)
 head(cw_battles)
 ```
 
@@ -166,14 +165,10 @@ Start by calculating how many years and months are in each battle.
 
 2. Add a variable to the data frame with the number of years for each battle.  
 
-- Hint: Create a character variable as follows. This can be used as a pattern in a regular expression.  
-   
-    ```{r, echo=TRUE, eval=TRUE}
+```{r}
     year_regex <- stringr::str_c(1861:1865, collapse = "|")
     year_regex
-    ```
-- Use `year_regex` to now count the number of years in each battle, add this to the data frame directly after `Date`, and save the data frame.
-```{r}
+
 # Using year_regex variable we can use str_count to identify if any of the year_regex values are in the date column and, if so, how many. This will allows us to count the number of years in each battle.
 
 cw_battles <- cw_battles |>
@@ -183,11 +178,6 @@ head(cw_battles)
 
 
 3. Add a variable to the data frame with the number of months for each battle.  
-- Consider R's built-in vector of month names: `month.name`.
-
-    ```{r, echo=TRUE, eval=TRUE}
-    month.name
-    ```
 - Use `month.name` to count the number of month names in the `Date` variable in each battle. 
 - Add this to the data frame directly after `Date` and save it. (Do something similar to part 2).
 ```{r}
@@ -261,13 +251,9 @@ identical(diff_rows, cw_rows)
   
     + The new variable `End` should contain the last date of each battle.
     + `Start` and `End ` **must be `Date` class objects.** 
-        + Hint: look at help for `separate()` and use {lubridate} functions.
 - Remove the `Date` variable from each data frame.
 - Save the data frame.
 
-You may use the following snippets of code for one or more of the data frames but you have to match to the correct data frame and put **in the correct order**. 
-
-- These snippets are not enough for any single data frame.
 ```{r}
 # Day
 day1 <- day |>
@@ -305,23 +291,6 @@ years1 <- years |>
 head(years1)
 
 ```
-
-
-
-```{block, echo = TRUE, eval = FALSE, include = TRUE}
-    separate(col = Date, into = c("Start", "End"), sep = "-") 
-
-    mutate(Start = mdy(Date), End = mdy(Date)) 
-
-    separate(col = Date, into = c("Month", "Start", "End", "Year")) 
-
-    mutate(End = mdy(End), year = year(End),
-        Start = str_c(Start, year, sep = ","),Start = mdy(Start))
-        
-    select(-Month, -Year) 
-```
-
-- You should have four updated data frames when complete.
 
 
 7. Use a single call to a {dplyr} function to bind the rows of the four updated data frames into a single new data frame with all the battles.
@@ -375,7 +344,3 @@ broom::tidy(cw_aov)
 ```
 
 Analysis of variance confirms the hypothesis from the plot. With a p-value close to zero we reject the null hypothesis. There is evidence at least one CWSAC level's mean duration is different from the other levels. 
-
-10. Review the Wikipedia page for this data. In just a few sentences, discuss whether you believe there are any ethical issues and/or potential for bias associated with the production of this data or the use of this data.
-
-One ethical issue I think is important lies within the outcome variable. Certain battles that are deemed indecisive in the context of the outcome of the war still fail to mention the loss of human life. For example, the notes for the Battle of Gettysburg fail to mention the staggering loss of life.  
